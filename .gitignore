@@ -1,0 +1,13 @@
+# Config
+.env
+.idea
+.DS_Store
+.vscode
+
+# Libs
+vendor
+node_modules
+
+# Claude
+CLAUDE.local.md
+.claude/CLAUDE.local.md

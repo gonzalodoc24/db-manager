@@ -1,0 +1,31 @@
+-- =============================================================================
+-- Tablas estáticas — datos de referencia/catálogo
+-- Estas tablas se exportan COMPLETAS (sin filtro de brand).
+-- Son compartidas por todos los brands y no cambian frecuentemente.
+-- =============================================================================
+--
+-- Lista configurada en config.sh (STATIC_TABLES).
+-- Este archivo documenta el criterio de inclusión de cada tabla.
+--
+-- Incluidas:
+--   localidades                     geografía, compartida globalmente
+--   municipio_ciudad_cod_postal_sires   códigos postales SIRES
+--   diagnosticos                    códigos CIE de diagnóstico
+--   diagnosticos_idiomas            traducciones de diagnósticos
+--   practicas                       catálogo de prácticas médicas
+--   laboratorios                    catálogo de laboratorios
+--   universidades                   catálogo de universidades
+--   generos                         tabla de géneros
+--   tipos_establecimiento_salud     tipos de establecimientos
+--   establecimientos_salud_sires    establecimientos registrados SIRES
+--   farmalink_tamanos               tamaños de presentación farmacéutica
+--   farmalink_vias                  vías de administración farmacéutica
+--   translators_idiomas             idiomas del sistema
+--   tipos_estados_generales_pacientes   estados de paciente
+--
+-- Excluidas explícitamente (ver EXCLUDED_TABLES en config.sh):
+--   log_auditoria                   log de auditoría (irrelevante para dev)
+--   auditoria                       >60M registros, irrelevante
+--   log_desborde                    ~1M registros, irrelevante
+--   profesionales_log_estados       irrelevante
+--   requests_log                    irrelevante
