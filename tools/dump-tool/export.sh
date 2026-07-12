@@ -5,7 +5,7 @@ set -euo pipefail
 # export.sh — Genera el dump reducido de la base de datos remota.
 #
 # Uso:
-#   ./export.sh
+#   ./export.sh [--skip-schema]
 #
 # El proceso:
 #   1. Abre el túnel SSH.
@@ -25,6 +25,27 @@ source "${SCRIPT_DIR}/lib/schema.sh"
 source "${SCRIPT_DIR}/lib/reduced_dump.sh"
 
 SCHEMA_FILE="${OUTPUT_DIR}/schema.sql"
+
+SKIP_SCHEMA=false
+
+usage() {
+    cat <<EOF
+Uso: ./export.sh [opciones]
+
+Opciones:
+  --skip-schema   Omite la descarga del esquema y reutiliza ${SCHEMA_FILE}.
+  -h, --help      Muestra esta ayuda.
+EOF
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-schema) SKIP_SCHEMA=true; shift ;;
+        -h|--help) usage ;;
+        *) die "Opción desconocida: $1 (usar --help)" ;;
+    esac
+done
 
 cleanup() {
     stop_ssh_tunnel
@@ -51,7 +72,12 @@ main() {
     verify_connection
 
     # 3. Esquema
-    download_schema "$SCHEMA_FILE"
+    if [[ "$SKIP_SCHEMA" == true ]]; then
+        [[ -f "$SCHEMA_FILE" ]] || die "No se puede omitir el esquema: no existe ${SCHEMA_FILE}. Ejecutar sin --skip-schema al menos una vez."
+        log_info "Omitiendo descarga de esquema (--skip-schema). Usando: ${SCHEMA_FILE}"
+    else
+        download_schema "$SCHEMA_FILE"
+    fi
 
     # 4. Grafo de dependencias
     build_dependency_graph

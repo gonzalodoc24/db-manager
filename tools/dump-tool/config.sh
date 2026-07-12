@@ -24,7 +24,7 @@ MAIN_TABLE_PK="id_shared_vc"
 MAIN_TABLE_LIMIT=500
 
 OUTPUT_DIR="${_SCRIPT_DIR}/output"
-ERROR_LOG="${OUTPUT_DIR}/error_$(date +%d-%m-%Y).log"
+ERROR_LOG="${OUTPUT_DIR}/logs/error_$(date +%d-%m-%Y).log"
 
 # =============================================================================
 # Binarios de PostgreSQL
