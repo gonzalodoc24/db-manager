@@ -19,7 +19,7 @@ dump-tool/
 ├── config.sh              Carga el .env y define parámetros no sensibles
 ├── export.sh              Script principal de exportación
 ├── import.sh              Script principal de importación
-├── test_ssh.sh            Prueba de conectividad SSH y DB
+├── connection.sh            Prueba de conectividad SSH y DB
 ├── test_schema.sh         Prueba de descarga de esquema y grafo de FK
 │
 ├── lib/
@@ -103,7 +103,7 @@ Instalación: ver sección "Requisitos previos" en `README.md`.
 | Script de importación local | ✅ Completado |
 | Patrón .env para credenciales | ✅ Completado |
 | Error logging con fecha | ✅ Completado |
-| Scripts de prueba (test_ssh, test_schema) | ✅ Completado |
+| Scripts de prueba (connection, test_schema) | ✅ Completado |
 | Probar export.sh end-to-end | 🔲 Pendiente |
 | Probar import.sh end-to-end | 🔲 Pendiente |
 | Validar consistencia del dump generado | 🔲 Pendiente |

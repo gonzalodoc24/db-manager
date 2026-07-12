@@ -14,7 +14,7 @@ cp .env.example .env
 # editar .env con las credenciales reales
 
 # 2. Verificar conectividad
-./test_ssh.sh
+./connection.sh
 
 # 3. Verificar esquema y grafo de FK (no toca datos)
 ./test_schema.sh
@@ -144,10 +144,10 @@ createdb -U postgres portalsalud_local
 
 ---
 
-### `test_ssh.sh` — Prueba de conectividad
+### `connection.sh` — Prueba de conectividad
 
 ```bash
-./test_ssh.sh
+./connection.sh
 ```
 
 Abre el túnel, verifica `pg_isready` y ejecuta `SELECT version()`. Si funciona, el stack SSH → bastion → RDS está operativo.
@@ -183,7 +183,7 @@ dump-tool/
 ├── config.sh              Carga .env, define parámetros no sensibles y listas de tablas
 ├── export.sh              Script principal de exportación
 ├── import.sh              Script principal de importación
-├── test_ssh.sh            Prueba de conectividad SSH y DB
+├── connection.sh            Prueba de conectividad SSH y DB
 ├── test_schema.sh         Prueba de esquema y grafo de FK
 │
 ├── lib/

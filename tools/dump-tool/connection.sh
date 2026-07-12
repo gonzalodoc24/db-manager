@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Prueba el túnel SSH y la conexión con la base de datos.
-# Uso: ./test_ssh.sh
+# Uso: ./connection.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -18,6 +18,7 @@ check_dependencies
 mkdir -p "$OUTPUT_DIR"
 init_error_log
 
+log_info "Prueba de túnel SSH y conexión a la DB"
 log_step "Abriendo túnel SSH..."
 start_ssh_tunnel
 
