@@ -5,7 +5,7 @@ set -euo pipefail
 # export.sh — Genera el dump reducido de la base de datos remota.
 #
 # Uso:
-#   ./export.sh [--skip-schema] [--skip-graph]
+#   ./export.sh [--skip-schema] [--skip-graph] [--only-schema] [--only-graph]
 #
 # El proceso:
 #   1. Abre el túnel SSH.
@@ -29,6 +29,8 @@ SCHEMA_FILE="${OUTPUT_DIR}/schema.sql"
 
 SKIP_SCHEMA=false
 SKIP_GRAPH=false
+ONLY_SCHEMA=false
+ONLY_GRAPH=false
 
 usage() {
     cat <<EOF
@@ -37,6 +39,8 @@ Uso: ./export.sh [opciones]
 Opciones:
   --skip-schema   Omite la descarga del esquema y reutiliza ${SCHEMA_FILE}.
   --skip-graph    Omite la reconstrucción del grafo de FK y reutiliza ${GRAPH_FILE}.
+  --only-schema   Descarga el esquema y termina (no construye el grafo ni exporta datos).
+  --only-graph    Construye el grafo de FK y termina (no exporta datos).
   -h, --help      Muestra esta ayuda.
 EOF
     exit 0
@@ -46,6 +50,8 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --skip-schema) SKIP_SCHEMA=true; shift ;;
         --skip-graph) SKIP_GRAPH=true; shift ;;
+        --only-schema) ONLY_SCHEMA=true; shift ;;
+        --only-graph) ONLY_GRAPH=true; shift ;;
         -h|--help) usage ;;
         *) die "Opción desconocida: $1 (usar --help)" ;;
     esac
@@ -83,12 +89,22 @@ main() {
         download_schema "$SCHEMA_FILE"
     fi
 
+    if [[ "$ONLY_SCHEMA" == true ]]; then
+        log_success "Esquema listo (--only-schema). Finalizando sin construir el grafo ni exportar datos."
+        exit 0
+    fi
+
     # 4. Grafo de dependencias
     if [[ "$SKIP_GRAPH" == true ]]; then
         [[ -f "$GRAPH_FILE" ]] || die "No se puede omitir el grafo: no existe ${GRAPH_FILE}. Ejecutar sin --skip-graph al menos una vez."
         log_info "Omitiendo reconstrucción del grafo (--skip-graph). Usando: ${GRAPH_FILE}"
     else
         build_dependency_graph
+    fi
+
+    if [[ "$ONLY_GRAPH" == true ]]; then
+        log_success "Grafo listo (--only-graph). Finalizando sin exportar datos."
+        exit 0
     fi
 
     # 5. Dump reducido
