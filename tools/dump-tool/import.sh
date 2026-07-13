@@ -5,10 +5,15 @@ set -euo pipefail
 # import.sh — Restaura el dump reducido en la base de datos local.
 #
 # Uso:
-#   ./import.sh [--skip-schema] [--only-schema] [--drop-schema]
+#   ./import.sh [--only-data] [--only-schema] [--drop-schema]
 #
 # Requiere haber ejecutado export.sh previamente.
 # La base de datos local debe existir antes de importar.
+#
+# El esquema se genera con "CREATE SCHEMA" (sin DROP/IF NOT EXISTS), asi que
+# reimportarlo sobre una base que ya lo tiene falla con errores de "already
+# exists". Por eso se exige indicar explicitamente --only-data (reutilizar el
+# esquema existente) o --drop-schema (recrearlo desde cero).
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,7 +24,7 @@ source "${SCRIPT_DIR}/lib/common.sh"
 SCHEMA_FILE="${OUTPUT_DIR}/schema.sql"
 DATA_FILE="${OUTPUT_DIR}/data.sql"
 
-SKIP_SCHEMA=false
+ONLY_DATA=false
 ONLY_SCHEMA=false
 DROP_SCHEMA=false
 
@@ -28,17 +33,21 @@ usage() {
 Uso: ./import.sh [opciones]
 
 Opciones:
-  --skip-schema   Omite la importación del esquema (asume que ya existe en la base local).
+  --only-data     Omite la importación del esquema (asume que ya existe en la base local) e importa solo los datos.
   --only-schema   Importa solo el esquema y termina (no importa los datos).
   --drop-schema   Elimina (CASCADE) el esquema \${LOCAL_DB_SCHEMA} existente en la base local antes de importar.
   -h, --help      Muestra esta ayuda.
+
+Se debe indicar --only-data o --drop-schema (o ambos junto con --only-schema
+en el caso de --drop-schema): sin uno de los dos, reimportar el esquema sobre
+una base que ya lo tiene falla con errores de "la relación ya existe".
 EOF
     exit 0
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --skip-schema) SKIP_SCHEMA=true; shift ;;
+        --only-data) ONLY_DATA=true; shift ;;
         --only-schema) ONLY_SCHEMA=true; shift ;;
         --drop-schema) DROP_SCHEMA=true; shift ;;
         -h|--help) usage ;;
@@ -46,8 +55,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ "$DROP_SCHEMA" == true && "$SKIP_SCHEMA" == true ]]; then
-    die "--drop-schema y --skip-schema son excluyentes."
+if [[ "$DROP_SCHEMA" == true && "$ONLY_DATA" == true ]]; then
+    die "--drop-schema y --only-data son excluyentes."
+fi
+
+if [[ "$ONLY_DATA" != true && "$DROP_SCHEMA" != true ]]; then
+    die "Especificar --only-data (reutilizar el esquema existente) o --drop-schema (recrearlo). Ejecutar con --help para más detalle."
 fi
 
 _local_psql() {
@@ -87,8 +100,8 @@ main() {
     check_dependencies
     verify_local_connection
 
-    if [[ "$SKIP_SCHEMA" == true ]]; then
-        log_info "Omitiendo importación de esquema (--skip-schema)."
+    if [[ "$ONLY_DATA" == true ]]; then
+        log_info "Omitiendo importación de esquema (--only-data)."
     else
         [[ -f "$SCHEMA_FILE" ]] || die "Esquema no encontrado: $SCHEMA_FILE. Ejecutar export.sh primero."
 
