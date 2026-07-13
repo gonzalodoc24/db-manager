@@ -84,10 +84,11 @@ Estos flags reemplazan a `test_schema.sh` (eliminado): antes era un script apart
 
 ## Flags de `import.sh`
 
-- `--skip-schema`: omite la importación del esquema (asume que ya existe) y va directo a los datos.
+- `--only-data`: omite la importación del esquema (asume que ya existe) y va directo a los datos.
 - `--only-schema`: importa solo el esquema y termina.
 - `--drop-schema`: como `schema.sql` genera `CREATE SCHEMA ${DB_SCHEMA};` sin `DROP`/`IF NOT EXISTS`, reimportar sobre una base que ya tiene el esquema falla con "already exists". Este flag corre `DROP SCHEMA IF EXISTS ${LOCAL_DB_SCHEMA} CASCADE;` antes de importar. Requiere la variable `LOCAL_DB_SCHEMA` en `.env`. Es destructivo (borra todo el esquema local) — usar con cuidado.
-- `--drop-schema` y `--skip-schema` son excluyentes.
+- `--drop-schema` y `--only-data` son excluyentes.
+- **Validación obligatoria**: si no se pasa `--only-data` ni `--drop-schema`, el script termina con error antes de conectarse a la base. Se agregó tras encontrarnos con una consola llena de `ERROR: la relación «...» ya existe` al reimportar sin pensar en el estado previo del esquema local.
 
 La importación de esquema y de datos usa `psql -q` para no volcar en consola cada `ALTER TABLE` / `COPY N` del dump.
 
@@ -122,7 +123,7 @@ Instalación: ver sección "Requisitos previos" en `README.md`.
 | Error logging con fecha | ✅ Completado |
 | Script de prueba de conectividad (connection.sh) | ✅ Completado |
 | Flags --skip-schema/--skip-graph/--only-schema/--only-graph en export.sh | ✅ Completado |
-| Flags --skip-schema/--only-schema/--drop-schema en import.sh | ✅ Completado |
+| Flags --only-data/--only-schema/--drop-schema en import.sh, con validación obligatoria | ✅ Completado |
 | Probar export.sh end-to-end | ✅ Completado |
 | Probar import.sh end-to-end | ✅ Completado (con `--only-schema`; falta correr el dump de datos completo) |
 | Validar consistencia del dump generado | 🔲 Pendiente |

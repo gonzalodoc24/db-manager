@@ -148,7 +148,7 @@ Combinables entre sí. Ejemplos útiles:
 ### `import.sh` — Importación en base local
 
 ```bash
-./import.sh [--skip-schema] [--only-schema] [--drop-schema]
+./import.sh [--only-data] [--only-schema] [--drop-schema]
 ```
 
 Requiere haber ejecutado `export.sh` previamente. La base local debe existir:
@@ -162,15 +162,17 @@ Ejecuta en orden:
 2. Importa el esquema → desde `output/schema.sql`
 3. Importa los datos → desde `output/data.sql`
 
+El esquema se genera con `CREATE SCHEMA` (sin `DROP`/`IF NOT EXISTS`), así que reimportarlo sobre una base que ya lo tiene falla con errores de "la relación ya existe". Por eso **es obligatorio pasar `--only-data` o `--drop-schema`**; sin ninguno de los dos, el script termina con un error antes de conectarse a la base.
+
 #### Flags
 
 | Flag | Efecto |
 |------|--------|
-| `--skip-schema` | Omite el paso 2 (asume que el esquema ya existe en la base local) y va directo a los datos. |
+| `--only-data` | Omite el paso 2 (asume que el esquema ya existe en la base local) y va directo a los datos. |
 | `--only-schema` | Ejecuta solo el paso 2 y termina. No importa datos. |
-| `--drop-schema` | Antes del paso 2, elimina (`DROP SCHEMA ... CASCADE`) el esquema `LOCAL_DB_SCHEMA` existente en la base local. Necesario para reimportar sin errores de "already exists". |
+| `--drop-schema` | Antes del paso 2, elimina (`DROP SCHEMA ... CASCADE`) el esquema `LOCAL_DB_SCHEMA` existente en la base local. |
 
-`--drop-schema` y `--skip-schema` son excluyentes. Ejemplo típico de reimportación completa:
+`--drop-schema` y `--only-data` son excluyentes. Ejemplo típico de reimportación completa:
 
 ```bash
 ./import.sh --drop-schema
