@@ -16,14 +16,12 @@ cp .env.example .env
 # 2. Verificar conectividad
 ./connection.sh
 
-# 3. Verificar esquema y grafo de FK (no toca datos)
-./test_schema.sh
-
-# 4. Exportar
+# 3. Exportar (esquema + grafo de FK + datos)
 ./export.sh
 
-# 5. Importar en la base local
-./import.sh
+# 4. Crear la base local (solo la primera vez) e importar
+createdb -U postgres "$LOCAL_DB_NAME"
+./import.sh --drop-schema
 ```
 
 ---
@@ -71,7 +69,7 @@ PG_ISREADY_BIN="/usr/lib/postgresql/17/bin/pg_isready"
 
 ## Configuración
 
-Toda la configuración se hace en `.env` (gitignoreado). Copiar `.env.example` como punto de partida:
+Toda la configuración se hace en `.env`. Copiar `.env.example` como punto de partida:
 
 ```bash
 cp .env.example .env
@@ -93,6 +91,7 @@ cp .env.example .env
 | `LOCAL_DB_NAME` | Nombre de la base local |
 | `LOCAL_DB_USER` | Usuario PostgreSQL local |
 | `LOCAL_DB_PASSWORD` | Contraseña PostgreSQL local |
+| `LOCAL_DB_SCHEMA` | Esquema PostgreSQL local (usado por `import.sh --drop-schema`) |
 | `BRAND` | ID del brand a exportar (entero) |
 
 ### Variables opcionales
@@ -115,7 +114,7 @@ Los parámetros de exportación (`MAIN_TABLE`, `MAIN_TABLE_PK`, `MAIN_TABLE_LIMI
 ### `export.sh` — Exportación completa
 
 ```bash
-./export.sh
+./export.sh [--skip-schema] [--skip-graph] [--only-schema] [--only-graph]
 ```
 
 Ejecuta en orden:
@@ -128,18 +127,53 @@ Ejecuta en orden:
 7. Recorre el grafo BFS y exporta todos los registros relacionados → `output/data.sql`
 8. Cierra el túnel SSH
 
+#### Flags
+
+| Flag | Efecto |
+|------|--------|
+| `--skip-schema` | Omite el paso 3 y reutiliza el `output/schema.sql` existente. |
+| `--skip-graph` | Omite el paso 4 y reutiliza el `output/dependency_graph.tsv` existente. |
+| `--only-schema` | Ejecuta solo hasta el paso 3 (descarga el esquema) y termina. No construye el grafo ni exporta datos. |
+| `--only-graph` | Ejecuta hasta el paso 4 (construye el grafo) y termina. No exporta datos. |
+
+Combinables entre sí. Ejemplos útiles:
+
+```bash
+./export.sh --only-schema              # solo bajar el esquema (primera vez o tras cambios de DDL)
+./export.sh --skip-schema --skip-graph # ya tengo esquema y grafo, solo re-exportar datos
+```
+
 ---
 
 ### `import.sh` — Importación en base local
 
 ```bash
-./import.sh
+./import.sh [--skip-schema] [--only-schema] [--drop-schema]
 ```
 
 Requiere haber ejecutado `export.sh` previamente. La base local debe existir:
 
 ```bash
-createdb -U postgres portalsalud_local
+createdb -U postgres "$LOCAL_DB_NAME"
+```
+
+Ejecuta en orden:
+1. Verifica la conexión con la base local
+2. Importa el esquema → desde `output/schema.sql`
+3. Importa los datos → desde `output/data.sql`
+
+#### Flags
+
+| Flag | Efecto |
+|------|--------|
+| `--skip-schema` | Omite el paso 2 (asume que el esquema ya existe en la base local) y va directo a los datos. |
+| `--only-schema` | Ejecuta solo el paso 2 y termina. No importa datos. |
+| `--drop-schema` | Antes del paso 2, elimina (`DROP SCHEMA ... CASCADE`) el esquema `LOCAL_DB_SCHEMA` existente en la base local. Necesario para reimportar sin errores de "already exists". |
+
+`--drop-schema` y `--skip-schema` son excluyentes. Ejemplo típico de reimportación completa:
+
+```bash
+./import.sh --drop-schema
 ```
 
 ---
@@ -154,16 +188,6 @@ Abre el túnel, verifica `pg_isready` y ejecuta `SELECT version()`. Si funciona,
 
 ---
 
-### `test_schema.sh` — Prueba de esquema y grafo de FK
-
-```bash
-./test_schema.sh
-```
-
-Descarga el esquema y construye el grafo de dependencias. No toca datos de usuario — solo lee metadatos de `pg_catalog`. Útil para verificar la conexión y revisar las relaciones FK antes del export completo.
-
----
-
 ## Archivos generados en `output/`
 
 | Archivo | Contenido |
@@ -172,7 +196,7 @@ Descarga el esquema y construye el grafo de dependencias. No toca datos de usuar
 | `data.sql` | Datos reducidos en formato COPY |
 | `dependency_graph.tsv` | Grafo FK: child\_table, child\_column, parent\_table, parent\_column |
 | `main_ids.txt` | IDs exportados de `plataforma_shared_vc` |
-| `error_DD-MM-YYYY.log` | Errores de pg_dump/psql (se limpia en cada ejecución) |
+| `logs/error_DD-MM-YYYY.log` | Errores de pg_dump/psql (se limpia en cada ejecución) |
 
 ---
 
@@ -183,8 +207,7 @@ dump-tool/
 ├── config.sh              Carga .env, define parámetros no sensibles y listas de tablas
 ├── export.sh              Script principal de exportación
 ├── import.sh              Script principal de importación
-├── connection.sh            Prueba de conectividad SSH y DB
-├── test_schema.sh         Prueba de esquema y grafo de FK
+├── connection.sh          Prueba de conectividad SSH y DB
 │
 ├── lib/
 │   ├── common.sh          Logging, init_error_log, show_error_log, check_dependencies
@@ -198,8 +221,8 @@ dump-tool/
 │   ├── dynamic_queries.sql Consultas reutilizables
 │   └── utils.sql          Consultas de diagnóstico y exploración
 │
-├── output/                Archivos generados (gitignoreado)
-├── .env                   Credenciales reales (gitignoreado — NO commitear)
+├── output/                Archivos generados (ignorado en git)
+├── .env                   Credenciales reales (ignorado — NO commitear)
 ├── .env.example           Plantilla de credenciales (commitable)
 ├── .gitignore
 └── notes.md               Notas del modelo de datos y volúmenes de tablas

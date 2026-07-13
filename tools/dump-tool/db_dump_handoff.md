@@ -12,15 +12,14 @@ El objetivo es evitar descargar un dump completo (muy pesado) y obtener únicame
 
 # Estado actual
 
-La herramienta fue reorganizada y modularizada en `database/scripts/dump-tool/`.
+La herramienta fue reorganizada y modularizada en `tools/dump-tool/`.
 
 ```
 dump-tool/
 ├── config.sh              Carga el .env y define parámetros no sensibles
 ├── export.sh              Script principal de exportación
 ├── import.sh              Script principal de importación
-├── connection.sh            Prueba de conectividad SSH y DB
-├── test_schema.sh         Prueba de descarga de esquema y grafo de FK
+├── connection.sh          Prueba de conectividad SSH y DB
 │
 ├── lib/
 │   ├── common.sh          Logging, init_error_log, show_error_log
@@ -34,8 +33,8 @@ dump-tool/
 │   ├── dynamic_queries.sql Consultas reutilizables (FK graph, tamaños, etc.)
 │   └── utils.sql          Consultas de diagnóstico
 │
-├── output/                Archivos generados (gitignoreado)
-├── .env                   Credenciales reales (gitignoreado, NO commitear)
+├── output/                Archivos generados (ignorado en git)
+├── .env                   Credenciales reales (ignorado en git, NO commitear)
 ├── .env.example           Plantilla de credenciales (commitable)
 ├── .gitignore             Ignora .env y output/*
 ├── notes.md               Notas del modelo de datos
@@ -65,14 +64,32 @@ La query está en `lib/schema.sh` (`build_dependency_graph`). La versión origin
 
 Se implementó el patrón `.env`:
 - `config.sh` es commitable y no contiene credenciales.
-- `.env` contiene las credenciales reales y está gitignoreado.
+- `.env` contiene las credenciales reales.
 - `.env.example` es la plantilla commitable.
 
 ## Logging de errores
 
-- Stderr de `pg_dump` y `psql` se redirige a `output/error_DD-MM-YYYY.log`.
+- Stderr de `pg_dump` y `psql` se redirige a `output/logs/error_DD-MM-YYYY.log`.
 - En caso de error se muestran solo las primeras 5 líneas truncadas a 120 caracteres.
 - El log se limpia al inicio de cada ejecución.
+
+## Flags de `export.sh`
+
+Para evitar rehacer pasos costosos durante la iteración de pruebas (ej: no re-descargar el esquema completo si no cambió), `export.sh` soporta:
+
+- `--skip-schema` / `--skip-graph`: reutilizan `output/schema.sql` / `output/dependency_graph.tsv` existentes en vez de regenerarlos.
+- `--only-schema` / `--only-graph`: cortan la ejecución justo después de ese paso, sin llegar a exportar datos.
+
+Estos flags reemplazan a `test_schema.sh` (eliminado): antes era un script aparte para probar solo esquema+grafo, ahora es el mismo `export.sh` con flags. Ver detalle y combinaciones en `README.md`.
+
+## Flags de `import.sh`
+
+- `--skip-schema`: omite la importación del esquema (asume que ya existe) y va directo a los datos.
+- `--only-schema`: importa solo el esquema y termina.
+- `--drop-schema`: como `schema.sql` genera `CREATE SCHEMA ${DB_SCHEMA};` sin `DROP`/`IF NOT EXISTS`, reimportar sobre una base que ya tiene el esquema falla con "already exists". Este flag corre `DROP SCHEMA IF EXISTS ${LOCAL_DB_SCHEMA} CASCADE;` antes de importar. Requiere la variable `LOCAL_DB_SCHEMA` en `.env`. Es destructivo (borra todo el esquema local) — usar con cuidado.
+- `--drop-schema` y `--skip-schema` son excluyentes.
+
+La importación de esquema y de datos usa `psql -q` para no volcar en consola cada `ALTER TABLE` / `COPY N` del dump.
 
 ## Binarios de PostgreSQL
 
@@ -103,20 +120,20 @@ Instalación: ver sección "Requisitos previos" en `README.md`.
 | Script de importación local | ✅ Completado |
 | Patrón .env para credenciales | ✅ Completado |
 | Error logging con fecha | ✅ Completado |
-| Scripts de prueba (connection, test_schema) | ✅ Completado |
-| Probar export.sh end-to-end | 🔲 Pendiente |
-| Probar import.sh end-to-end | 🔲 Pendiente |
+| Script de prueba de conectividad (connection.sh) | ✅ Completado |
+| Flags --skip-schema/--skip-graph/--only-schema/--only-graph en export.sh | ✅ Completado |
+| Flags --skip-schema/--only-schema/--drop-schema en import.sh | ✅ Completado |
+| Probar export.sh end-to-end | ✅ Completado |
+| Probar import.sh end-to-end | ✅ Completado (con `--only-schema`; falta correr el dump de datos completo) |
 | Validar consistencia del dump generado | 🔲 Pendiente |
 
 ---
 
 # Próximos pasos
 
-1. Verificar conectividad con el endpoint correcto del RDS (ver `tools/aws/aws_servers_info.md`).
-2. Ejecutar `./test_schema.sh` para confirmar que el esquema se descarga y el grafo se construye.
-3. Ejecutar `./export.sh` y revisar los archivos generados en `output/`.
-4. Crear la base local e importar con `./import.sh`.
-5. Validar que los datos importados son consistentes (sin FK violations).
+1. Ejecutar `./import.sh --drop-schema` completo (esquema + datos) contra la base local `portalsalud`.
+2. Validar que los datos importados son consistentes (sin FK violations) — ver sección "Consideraciones pendientes".
+3. Evaluar si hace falta cubrir el caso de tablas con `brand` no alcanzables desde `plataforma_shared_vc`.
 
 ---
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================================================================
-# Carga credenciales y valores de entorno desde .env (gitignoreado).
+# Carga credenciales y valores de entorno desde .env .
 # Copiar .env.example como .env y completar los valores antes de usar.
 # =============================================================================
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
